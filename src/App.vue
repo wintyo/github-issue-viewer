@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import gql from 'graphql-tag';
 import { useGitHubStore } from './store/github';
@@ -16,21 +16,73 @@ const saveGitHubToken = () => {
 
 const githubStore = useGitHubStore();
 
+const repoForm = reactive<{
+  repoOwner: string;
+  repoName: string;
+}>({
+  repoOwner: githubStore.repository.owner,
+  repoName: githubStore.repository.name,
+});
+
+const saveTargetRepository = () => {
+  githubStore.setRepoOwner(repoForm.repoOwner);
+  githubStore.setRepoName(repoForm.repoName);
+};
+
 const state = reactive({
   last: 1,
 });
 
-const { result } = useQuery(gql`
-  query {
-    viewer {
-      login
-    }
-  }
-`);
-
-const variables = reactive({
-  last: 1,
+const variables = computed(() => {
+  return {
+    searchQuery: [
+      `repo:${githubStore.repository.owner}/${githubStore.repository.name}`,
+      'is:issue',
+      'is:closed',
+      'closed:>2022-02-20',
+    ].join(' '),
+  };
 });
+
+const { result } = useQuery(
+  gql`
+    query searchIssues($searchQuery: String!) {
+      search(query: $searchQuery, type: ISSUE, last: 10) {
+        edges {
+          node {
+            ... on Issue {
+              id
+              number
+              title
+              url
+              body
+              labels(last: 10) {
+                edges {
+                  node {
+                    id
+                    name
+                  }
+                }
+              }
+              closed
+              closedAt
+              assignees(last: 5) {
+                edges {
+                  node {
+                    id
+                    name
+                    email
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `,
+  variables
+);
 
 const { result: result2 } = useQuery(
   gql`
@@ -82,13 +134,34 @@ div
     span GITHUB TOKEN:
     input(v-model='tokenForm.githubToken', type='password')
     button(@click='saveGitHubToken') save
+  div
+    div TARGET GITHUB REPOSITORY
+    input(v-model='repoForm.repoOwner', placeholder='Owner')
+    input(v-model='repoForm.repoName', placeholder='Name')
+    button(@click='saveTargetRepository') save
   input(
     :value='githubStore.request.last',
     type='number',
     @change='onChangeLast'
   )
-  div {{ result }}
-  div {{ result2 }}
+  div(v-if='result')
+    template(v-for='edge in result.search.edges')
+      .issue-block
+        a(:href='edge.node.url', target='_blank') {{ edge.node.title }}
+        div
+          span labels: {{ edge.node.labels.edges.map((labelEdge: any) => labelEdge.node.name).join(', ') }}
+        div {{ edge.node.body }}
+  //- div {{ result2 }}
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.issue-block {
+  padding: 5px;
+  border: solid 1px #ccc;
+  white-space: pre-wrap;
+
+  & + & {
+    margin-top: 5px;
+  }
+}
+</style>
