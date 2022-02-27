@@ -1,4 +1,5 @@
-import { createApp, provide, h } from 'vue';
+import { createApp, watch, provide, h } from 'vue';
+import { createPinia } from 'pinia';
 import {
   ApolloClient,
   createHttpLink,
@@ -35,4 +36,19 @@ const app = createApp({
   render: () => h(App),
 });
 
+const pinia = createPinia();
+app.use(pinia);
+
 app.mount('#app');
+
+// localStorageに保存する
+watch(
+  pinia.state,
+  (newState) => {
+    console.log(newState);
+    localStorage.setItem('piniaState', JSON.stringify(newState));
+  },
+  {
+    deep: true,
+  }
+);

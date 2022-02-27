@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import gql from 'graphql-tag';
+import { useGitHubStore } from './store/github';
 
 const tokenForm = reactive<{
   githubToken: string;
@@ -12,6 +13,8 @@ const tokenForm = reactive<{
 const saveGitHubToken = () => {
   localStorage.setItem('GITHUB_TOKEN', tokenForm.githubToken);
 };
+
+const githubStore = useGitHubStore();
 
 const state = reactive({
   last: 1,
@@ -61,8 +64,15 @@ const { result: result2 } = useQuery(
       }
     }
   `,
-  variables
+  githubStore.request
 );
+
+const onChangeLast = (event: Event) => {
+  if (!(event.currentTarget instanceof HTMLInputElement)) {
+    return;
+  }
+  githubStore.setLast(event.currentTarget.valueAsNumber);
+};
 </script>
 
 <template lang="pug">
@@ -72,8 +82,11 @@ div
     span GITHUB TOKEN:
     input(v-model='tokenForm.githubToken', type='password')
     button(@click='saveGitHubToken') save
-  div Hello World!
-  input(v-model='variables.last', type='number')
+  input(
+    :value='githubStore.request.last',
+    type='number',
+    @change='onChangeLast'
+  )
   div {{ result }}
   div {{ result2 }}
 </template>
