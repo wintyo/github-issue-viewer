@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import gql from 'graphql-tag';
 
@@ -13,6 +13,10 @@ const saveGitHubToken = () => {
   localStorage.setItem('GITHUB_TOKEN', tokenForm.githubToken);
 };
 
+const state = reactive({
+  last: 1,
+});
+
 const { result } = useQuery(gql`
   query {
     viewer {
@@ -21,28 +25,34 @@ const { result } = useQuery(gql`
   }
 `);
 
-const { result: result2 } = useQuery(gql`
-  query {
-    viewer {
-      login
-      issues(last: 10, filterBy: {}) {
-        edges {
-          node {
-            id
-            url
-            number
-            closed
-            closedAt
-            body
-            title
-            editor {
-              login
-            }
-            assignees(last: 10) {
-              edges {
-                node {
-                  id
-                  name
+const variables = reactive({
+  last: 1,
+});
+
+const { result: result2 } = useQuery(
+  gql`
+    query getIssues($last: Int) {
+      viewer {
+        login
+        issues(last: $last, filterBy: {}) {
+          edges {
+            node {
+              id
+              url
+              number
+              closed
+              closedAt
+              body
+              title
+              editor {
+                login
+              }
+              assignees(last: 10) {
+                edges {
+                  node {
+                    id
+                    name
+                  }
                 }
               }
             }
@@ -50,8 +60,9 @@ const { result: result2 } = useQuery(gql`
         }
       }
     }
-  }
-`);
+  `,
+  variables
+);
 </script>
 
 <template lang="pug">
@@ -62,6 +73,7 @@ div
     input(v-model='tokenForm.githubToken', type='password')
     button(@click='saveGitHubToken') save
   div Hello World!
+  input(v-model='variables.last', type='number')
   div {{ result }}
   div {{ result2 }}
 </template>
