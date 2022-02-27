@@ -3,6 +3,9 @@ import { defineStore } from 'pinia';
 type State = {
   request: {
     last: number;
+    dateStr: string;
+    fromDataStr: string;
+    toDateStr: string;
   };
   repository: {
     owner: string;
@@ -19,6 +22,9 @@ function initialState(): State {
     return {
       request: {
         last: 5,
+        dateStr: '',
+        fromDataStr: '',
+        toDateStr: '',
       },
       repository: {
         owner: '',
@@ -39,6 +45,15 @@ export const useGitHubStore = defineStore('github', {
     },
     setLast(last: number) {
       this.request.last = last;
+    },
+    setDate(dateStr: string) {
+      this.request.dateStr = dateStr;
+    },
+    setFromDateStr(fromDateStr: string) {
+      this.request.fromDataStr = fromDateStr;
+    },
+    setToDateStr(toDateStr: string) {
+      this.request.toDateStr = toDateStr;
     },
   },
 });

@@ -4,6 +4,7 @@ import { groupBy } from 'lodash-es';
 import { useQuery } from '@vue/apollo-composable';
 import gql from 'graphql-tag';
 import { useGitHubStore } from './store/github';
+import { omitNullableHandler } from './utils/';
 
 const tokenForm = reactive<{
   githubToken: string;
@@ -31,13 +32,28 @@ const saveTargetRepository = () => {
 };
 
 const variables = computed(() => {
+  const closedPeriodQuery = (() => {
+    const { fromDataStr, toDateStr } = githubStore.request;
+    if (!fromDataStr && !toDateStr) {
+      return null;
+    }
+    if (!toDateStr) {
+      return `closed:>=${fromDataStr}`;
+    }
+    if (!fromDataStr) {
+      return `closed:<=${toDateStr}`;
+    }
+    return `closed:${fromDataStr}..${toDateStr}`;
+  })();
   return {
     searchQuery: [
       `repo:${githubStore.repository.owner}/${githubStore.repository.name}`,
       'is:issue',
       'is:closed',
-      'closed:2022-02-25',
-    ].join(' '),
+      closedPeriodQuery,
+    ]
+      .filter(omitNullableHandler)
+      .join(' '),
     last: githubStore.request.last,
   };
 });
@@ -95,46 +111,25 @@ const issueGroupByAssignee = computed(() => {
   return groups;
 });
 
-const { result: result2 } = useQuery(
-  gql`
-    query getIssues($last: Int) {
-      viewer {
-        login
-        issues(last: $last, filterBy: {}) {
-          edges {
-            node {
-              id
-              url
-              number
-              closed
-              closedAt
-              body
-              title
-              editor {
-                login
-              }
-              assignees(last: 10) {
-                edges {
-                  node {
-                    id
-                    name
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `,
-  githubStore.request
-);
-
 const onChangeLast = (event: Event) => {
   if (!(event.currentTarget instanceof HTMLInputElement)) {
     return;
   }
   githubStore.setLast(event.currentTarget.valueAsNumber);
+};
+
+const onChangeFromDate = (event: Event) => {
+  if (!(event.currentTarget instanceof HTMLInputElement)) {
+    return;
+  }
+  githubStore.setFromDateStr(event.currentTarget.value);
+};
+
+const onChangeToDate = (event: Event) => {
+  if (!(event.currentTarget instanceof HTMLInputElement)) {
+    return;
+  }
+  githubStore.setToDateStr(event.currentTarget.value);
 };
 </script>
 
@@ -158,6 +153,19 @@ div
         :value='githubStore.request.last',
         type='number',
         @change='onChangeLast'
+      )
+    div
+      span 期間:
+      input(
+        :value='githubStore.request.fromDataStr',
+        type='date',
+        @change='onChangeFromDate'
+      )
+      span 〜
+      input(
+        :value='githubStore.request.toDateStr',
+        type='date',
+        @change='onChangeToDate'
       )
   div(v-if='issueGroupByAssignee')
     template(v-for='(issues, key) in issueGroupByAssignee')
