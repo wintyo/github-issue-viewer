@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue';
+import { groupBy } from 'lodash-es';
 import { useQuery } from '@vue/apollo-composable';
 import gql from 'graphql-tag';
 import { useGitHubStore } from './store/github';
@@ -29,25 +30,22 @@ const saveTargetRepository = () => {
   githubStore.setRepoName(repoForm.repoName);
 };
 
-const state = reactive({
-  last: 1,
-});
-
 const variables = computed(() => {
   return {
     searchQuery: [
       `repo:${githubStore.repository.owner}/${githubStore.repository.name}`,
       'is:issue',
       'is:closed',
-      'closed:>2022-02-20',
+      'closed:2022-02-25',
     ].join(' '),
+    last: githubStore.request.last,
   };
 });
 
 const { result } = useQuery(
   gql`
-    query searchIssues($searchQuery: String!) {
-      search(query: $searchQuery, type: ISSUE, last: 10) {
+    query searchIssues($searchQuery: String!, $last: Int) {
+      search(query: $searchQuery, type: ISSUE, last: $last) {
         edges {
           node {
             ... on Issue {
@@ -70,6 +68,7 @@ const { result } = useQuery(
                 edges {
                   node {
                     id
+                    login
                     name
                     email
                   }
@@ -83,6 +82,18 @@ const { result } = useQuery(
   `,
   variables
 );
+
+const issueGroupByAssignee = computed(() => {
+  if (result.value == null) {
+    return null;
+  }
+  const groups = groupBy(result.value.search.edges, (edge: any) => {
+    const assignee = edge.node.assignees.edges[0];
+    return assignee ? assignee.node.login : '';
+  });
+  console.log(groups);
+  return groups;
+});
 
 const { result: result2 } = useQuery(
   gql`
@@ -139,22 +150,35 @@ div
     input(v-model='repoForm.repoOwner', placeholder='Owner')
     input(v-model='repoForm.repoName', placeholder='Name')
     button(@click='saveTargetRepository') save
-  input(
-    :value='githubStore.request.last',
-    type='number',
-    @change='onChangeLast'
-  )
-  div(v-if='result')
-    template(v-for='edge in result.search.edges')
-      .issue-block
-        a(:href='edge.node.url', target='_blank') {{ edge.node.title }}
-        div
-          span labels: {{ edge.node.labels.edges.map((labelEdge: any) => labelEdge.node.name).join(', ') }}
-        div {{ edge.node.body }}
-  //- div {{ result2 }}
+  .search-area
+    div 検索
+    div
+      span 件数:
+      input(
+        :value='githubStore.request.last',
+        type='number',
+        @change='onChangeLast'
+      )
+  div(v-if='issueGroupByAssignee')
+    template(v-for='(issues, key) in issueGroupByAssignee')
+      h3 {{ key || 'NoBody' }}
+      div
+        template(v-for='issue in issues')
+          .issue-block
+            a(:href='issue.node.url', target='_blank') {{ issue.node.title }}
+            div
+              span labels: {{ issue.node.labels.edges.map((labelEdge: any) => labelEdge.node.name).join(', ') }}
+            div closedAt: {{ issue.node.closedAt }}
+            div {{ issue.node.body }}
 </template>
 
 <style lang="scss" scoped>
+.search-area {
+  margin-top: 10px;
+  border: solid 1px #ccc;
+  padding: 10px;
+}
+
 .issue-block {
   padding: 5px;
   border: solid 1px #ccc;

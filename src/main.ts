@@ -15,7 +15,6 @@ const httpLink = createHttpLink({
   uri: 'https://api.github.com/graphql',
 });
 const authLink = setContext((_, { headers }) => {
-  console.log(headers);
   return {
     headers: {
       ...headers,
