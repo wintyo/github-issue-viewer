@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue';
 import { groupBy } from 'lodash-es';
+import { addDays } from 'date-fns';
 import { useQuery } from '@vue/apollo-composable';
 import gql from 'graphql-tag';
 import { useGitHubStore } from './store/github';
@@ -37,13 +38,16 @@ const variables = computed(() => {
     if (!fromDataStr && !toDateStr) {
       return null;
     }
-    if (!toDateStr) {
-      return `closed:>=${fromDataStr}`;
+    const fromDate = fromDataStr ? new Date(fromDataStr) : null;
+    const toDate = toDateStr ? addDays(new Date(toDateStr), 1) : null;
+    if (fromDate != null && toDate == null) {
+      return `closed:>=${fromDate.toISOString()}`;
     }
-    if (!fromDataStr) {
-      return `closed:<=${toDateStr}`;
+    if (fromDate == null && toDate != null) {
+      return `closed:<=${toDate.toISOString()}`;
     }
-    return `closed:${fromDataStr}..${toDateStr}`;
+    // 本当はnullはこないが、ANDチェックのせいでnullの可能性もあると判断されてしまったため?をつける
+    return `closed:${fromDate?.toISOString()}..${toDate?.toISOString()}`;
   })();
   return {
     searchQuery: [
@@ -176,7 +180,7 @@ div
             a(:href='issue.node.url', target='_blank') {{ issue.node.title }}
             div
               span labels: {{ issue.node.labels.edges.map((labelEdge: any) => labelEdge.node.name).join(', ') }}
-            div closedAt: {{ issue.node.closedAt }}
+            div closedAt: {{ $filters.formatDate(issue.node.closedAt, 'yyyy/MM/dd HH:mm:ss') }}
             div {{ issue.node.body }}
 </template>
 

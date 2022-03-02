@@ -7,6 +7,7 @@ import {
 } from '@apollo/client/core';
 import { setContext } from '@apollo/client/link/context';
 import { DefaultApolloClient } from '@vue/apollo-composable';
+import { filters } from './utils/filters';
 import App from './App.vue';
 
 const GITHUB_TOKEN = localStorage.getItem('GITHUB_TOKEN') || '';
@@ -37,6 +38,8 @@ const app = createApp({
 
 const pinia = createPinia();
 app.use(pinia);
+
+app.config.globalProperties.$filters = filters;
 
 app.mount('#app');
 
