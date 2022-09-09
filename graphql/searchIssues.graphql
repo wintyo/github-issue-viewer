@@ -1,0 +1,35 @@
+query searchIssues($searchQuery: String!, $last: Int) {
+  search(query: $searchQuery, type: ISSUE, last: $last) {
+    edges {
+      node {
+        ... on Issue {
+          id
+          number
+          title
+          url
+          body
+          labels(last: 10) {
+            edges {
+              node {
+                id
+                name
+              }
+            }
+          }
+          closed
+          closedAt
+          assignees(last: 5) {
+            edges {
+              node {
+                id
+                login
+                name
+                email
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

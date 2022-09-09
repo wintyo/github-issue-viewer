@@ -3,9 +3,13 @@ import { reactive, computed } from 'vue';
 import { groupBy } from 'lodash-es';
 import { addDays } from 'date-fns';
 import { useQuery } from '@vue/apollo-composable';
-import gql from 'graphql-tag';
 import { useGitHubStore } from './store/github';
 import { omitNullableHandler } from './utils/';
+import type {
+  SearchIssuesQuery,
+  SearchIssuesQueryVariables,
+} from './generated';
+import { SearchIssuesDocument } from './generated';
 
 const tokenForm = reactive<{
   githubToken: string;
@@ -62,44 +66,8 @@ const variables = computed(() => {
   };
 });
 
-const { result } = useQuery(
-  gql`
-    query searchIssues($searchQuery: String!, $last: Int) {
-      search(query: $searchQuery, type: ISSUE, last: $last) {
-        edges {
-          node {
-            ... on Issue {
-              id
-              number
-              title
-              url
-              body
-              labels(last: 10) {
-                edges {
-                  node {
-                    id
-                    name
-                  }
-                }
-              }
-              closed
-              closedAt
-              assignees(last: 5) {
-                edges {
-                  node {
-                    id
-                    login
-                    name
-                    email
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `,
+const { result } = useQuery<SearchIssuesQuery, SearchIssuesQueryVariables>(
+  SearchIssuesDocument,
   variables
 );
 
@@ -176,10 +144,12 @@ div
       h3 {{ key || 'NoBody' }}
       div
         template(v-for='issue in issues')
-          .issue-block
+          .issue-block(
+            v-if='issue != null && issue.node != null && issue.node.__typename === "Issue"'
+          )
             a(:href='issue.node.url', target='_blank') {{ issue.node.title }}
             div
-              span labels: {{ issue.node.labels.edges.map((labelEdge: any) => labelEdge.node.name).join(', ') }}
+              span labels: {{ issue.node.labels?.edges?.map((labelEdge: any) => labelEdge.node.name).join(', ') }}
             div closedAt: {{ $filters.formatDate(issue.node.closedAt, 'yyyy/MM/dd HH:mm:ss') }}
             div {{ issue.node.body }}
 </template>
